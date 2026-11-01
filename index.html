@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ders Takip Ajandası ve Kronometre</title>
+    
+    <!-- PWA / Mobil Ayarları -->
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Ders Ajandası">
+    
+    <!-- Tailwind CSS & Chart.js & Lucide Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+
+    <!-- Üst Başlık & PWA Yükleme Butonu -->
+    <header class="bg-indigo-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="book-open" class="w-6 h-6"></i>
+                <h1 class="text-xl font-bold">Ders Takip Ajandası</h1>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <!-- Veri Yedekleme İçe/Dışa Aktar -->
+                <button onclick="exportData()" title="Verileri Yedekle (İndir)" class="p-2 bg-indigo-700 hover:bg-indigo-800 rounded-lg text-xs flex items-center gap-1 transition">
+                    <i data-lucide="download" class="w-4 h-4"></i> Yedekle
+                </button>
+                <label title="Yedek Yükle" class="p-2 bg-indigo-700 hover:bg-indigo-800 rounded-lg text-xs flex items-center gap-1 cursor-pointer transition">
+                    <i data-lucide="upload" class="w-4 h-4"></i> Yükle
+                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+                </label>
+
+                <!-- PWA İndir Butonu (Tarayıcı Destekliyorsa) -->
+                <button id="installBtn" class="hidden bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 shadow transition">
+                    <i data-lucide="download-cloud" class="w-4 h-4"></i>
+                    <span>Uygulamayı İndir</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 mt-6 space-y-6">
+
+        <!-- KRONOMETRE MODÜLÜ -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-slate-700 flex items-center space-x-2">
+                    <i data-lucide="timer" class="w-5 h-5 text-indigo-600"></i>
+                    <span>Çalışma Kronometresi</span>
+                </h2>
+                <span id="statusBadge" class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-medium">Hazır</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">DERS / KONU SEÇİMİ</label>
+                    <input type="text" id="subjectInput" placeholder="Örn: Anayasa Hukuku, İdare Hukuku..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">NOT / AÇIKLAMA (OPSİYONEL)</label>
+                    <input type="text" id="noteInput" placeholder="Örn: Sayfa 40-60 arası soru çözümü" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
+                </div>
+            </div>
+
+            <!-- Sayaç Göstergesi -->
+            <div class="text-center my-4">
+                <div id="display" class="text-5xl md:text-6xl font-mono font-bold text-slate-800 tracking-wider">00:00:00</div>
+            </div>
+
+            <!-- Kronometre Kontrol Butonları -->
+            <div class="flex justify-center space-x-4">
+                <button id="startBtn" onclick="startTimer()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-xl flex items-center space-x-2 transition shadow-md shadow-indigo-200">
+                    <i data-lucide="play" class="w-4 h-4"></i> <span>Başlat</span>
+                </button>
+                <button id="stopBtn" onclick="stopTimer()" disabled class="bg-rose-500 hover:bg-rose-600 text-white font-medium px-6 py-2.5 rounded-xl flex items-center space-x-2 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="square" class="w-4 h-4"></i> <span>Durdur & Kaydet</span>
+                </button>
+                <button id="resetBtn" onclick="resetTimer()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-4 py-2.5 rounded-xl flex items-center space-x-1 transition">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> <span>Sıfırla</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- DENEME TAKİBİ & GRAFİK MODÜLÜ -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-slate-700 flex items-center space-x-2">
+                    <i data-lucide="line-chart" class="w-5 h-5 text-indigo-600"></i>
+                    <span>Deneme Netleri & Yükseliş Grafiği</span>
+                </h2>
+            </div>
+
+            <!-- Deneme Ekleme Formu -->
+            <form onsubmit="addTrial(event)" class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div class="col-span-2 md:col-span-1">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Tarih</label>
+                    <input type="date" id="trialDate" required class="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="col-span-2 md:col-span-1">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Sınav Adı</label>
+                    <input type="text" id="trialName" placeholder="Örn: Genel Deneme 1" required class="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Doğru</label>
+                    <input type="number" step="0.1" id="trialCorrect" required oninput="calculateNet()" class="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Yanlış</label>
+                    <input type="number" step="0.1" id="trialWrong" required oninput="calculateNet()" class="w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="col-span-2 md:col-span-1 flex items-end">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded-lg text-sm transition flex items-center justify-center space-x-1">
+                        <i data-lucide="plus" class="w-4 h-4"></i> <span>Kaydet</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Net Grafiği -->
+            <div class="relative w-full h-64 mb-6">
+                <canvas id="trialChart"></canvas>
+            </div>
+
+            <!-- Geçmiş Denemeler Listesi -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-slate-500 text-xs">
+                            <th class="py-2 px-3">Tarih</th>
+                            <th class="py-2 px-3">Sınav</th>
+                            <th class="py-2 px-3">D</th>
+                            <th class="py-2 px-3">Y</th>
+                            <th class="py-2 px-3">Net</th>
+                            <th class="py-2 px-3 text-right">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trialList" class="divide-y divide-slate-100">
+                        <!-- Denemeler Javascript ile dolacak -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- GÜNLÜK ÇALIŞMA KAYITLARI / AJANDA -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <h2 class="text-lg font-bold text-slate-700 flex items-center space-x-2">
+                    <i data-lucide="calendar" class="w-5 h-5 text-indigo-600"></i>
+                    <span>Çalışma Geçmişi</span>
+                </h2>
+                
+                <div class="flex items-center space-x-3">
+                    <input type="date" id="dateFilter" onchange="renderLogs()" class="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-indigo-500">
+                    <span id="totalStudyTime" class="bg-indigo-50 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg text-xs">Toplam: 0 dk</span>
+                </div>
+            </div>
+
+            <div id="logList" class="space-y-3">
+                <!-- Oturum Kartları JS ile Dinamik Gelecek -->
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- DEĞİŞKENLER ---
+        let timerInterval = null;
+        let startTime = 0;
+        let elapsedTime = 0;
+        let logs = JSON.parse(localStorage.getItem('study_logs')) || [];
+        let trials = JSON.parse(localStorage.getItem('trial_logs')) || [];
+        let chartInstance = null;
+
+        // --- SAYFA YÜKLENİRKEN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            document.getElementById('dateFilter').valueAsDate = new Date();
+            document.getElementById('trialDate').valueAsDate = new Date();
+            renderLogs();
+            renderTrials();
+        });
+
+        // --- KRONOMETRE FONKSİYONLARI ---
+        function startTimer() {
+            const subject = document.getElementById('subjectInput').value.trim();
+            if (!subject) {
+                alert('Lütfen önce ders veya konu başlığı giriniz!');
+                return;
+            }
+
+            startTime = Date.now() - elapsedTime;
+            timerInterval = setInterval(updateDisplay, 1000);
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('subjectInput').disabled = true;
+            document.getElementById('statusBadge').innerText = "Çalışma Devam Ediyor";
+            document.getElementById('statusBadge').className = "bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-medium";
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            const endTime = Date.now();
+            const subject = document.getElementById('subjectInput').value.trim();
+            const note = document.getElementById('noteInput').value.trim();
+
+            if (elapsedTime > 0) {
+                const newLog = {
+                    id: Date.now(),
+                    subject: subject,
+                    note: note,
+                    duration: elapsedTime,
+                    date: new Date().toISOString().split('T')[0],
+                    startTime: new Date(startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    endTime: new Date(endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+
+                logs.unshift(newLog);
+                localStorage.setItem('study_logs', JSON.stringify(logs));
+                renderLogs();
+            }
+
+            resetTimer();
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            elapsedTime = 0;
+            document.getElementById('display').innerText = "00:00:00";
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('subjectInput').disabled = false;
+            document.getElementById('statusBadge').innerText = "Hazır";
+            document.getElementById('statusBadge').className = "bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-medium";
+        }
+
+        function updateDisplay() {
+            elapsedTime = Date.now() - startTime;
+            let totalSeconds = Math.floor(elapsedTime / 1000);
+            let hours = Math.floor(totalSeconds / 3600);
+            let minutes = Math.floor((totalSeconds % 3600) / 60);
+            let seconds = totalSeconds % 60;
+
+            document.getElementById('display').innerText = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // --- GÜNLÜK KAYITLARI LİSTELEME ---
+        function renderLogs() {
+            const selectedDate = document.getElementById('dateFilter').value;
+            const logList = document.getElementById('logList');
+            logList.innerHTML = '';
+
+            const filteredLogs = logs.filter(log => log.date === selectedDate);
+            let totalMs = 0;
+
+            if (filteredLogs.length === 0) {
+                logList.innerHTML = `<div class="text-center text-slate-400 py-6 text-sm">Bu tarihte çalışma kaydı bulunmuyor.</div>`;
+            } else {
+                filteredLogs.forEach(log => {
+                    totalMs += log.duration;
+                    const durationMinutes = Math.round(log.duration / 60000);
+                    
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:border-slate-200 transition";
+                    item.innerHTML = `
+                        <div class="space-y-1">
+                            <h3 class="font-semibold text-slate-800 text-sm">${escapeHtml(log.subject)}</h3>
+                            <p class="text-xs text-slate-500">${log.startTime} - ${log.endTime} ${log.note ? `• <span class="italic">${escapeHtml(log.note)}</span>` : ''}</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="font-mono text-sm font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">${durationMinutes} dk</span>
+                            <button onclick="deleteLog(${log.id})" class="text-slate-400 hover:text-rose-500 transition">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+                    logList.appendChild(item);
+                });
+            }
+
+            const totalMinutes = Math.round(totalMs / 60000);
+            const hours = Math.floor(totalMinutes / 60);
+            const mins = totalMinutes % 60;
+            document.getElementById('totalStudyTime').innerText = `Toplam: ${hours > 0 ? `${hours} sa ` : ''}${mins} dk`;
+            lucide.createIcons();
+        }
+
+        function deleteLog(id) {
+            if (confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
+                logs = logs.filter(log => log.id !== id);
+                localStorage.setItem('study_logs', JSON.stringify(logs));
+                renderLogs();
+            }
+        }
+
+        // --- DENEME MODÜLÜ & GRAFİK ---
+        function addTrial(e) {
+            e.preventDefault();
+            const date = document.getElementById('trialDate').value;
+            const name = document.getElementById('trialName').value.trim();
+            const correct = parseFloat(document.getElementById('trialCorrect').value) || 0;
+            const wrong = parseFloat(document.getElementById('trialWrong').value) || 0;
+            const net = +(correct - (wrong / 4)).toFixed(2);
+
+            const trial = { id: Date.now(), date, name, correct, wrong, net };
+            trials.push(trial);
+            trials.sort((a, b) => new Date(a.date) - new Date(b.date)); // Tarihe göre sırala
+
+            localStorage.setItem('trial_logs', JSON.stringify(trials));
+            
+            document.getElementById('trialName').value = '';
+            document.getElementById('trialCorrect').value = '';
+            document.getElementById('trialWrong').value = '';
+            
+            renderTrials();
+        }
+
+        function deleteTrial(id) {
+            if (confirm('Bu deneme kaydını silmek istiyor musunuz?')) {
+                trials = trials.filter(t => t.id !== id);
+                localStorage.setItem('trial_logs', JSON.stringify(trials));
+                renderTrials();
+            }
+        }
+
+        function renderTrials() {
+            const tbody = document.getElementById('trialList');
+            tbody.innerHTML = '';
+
+            trials.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 text-slate-600">${t.date}</td>
+                    <td class="py-2.5 px-3 font-medium text-slate-800">${escapeHtml(t.name)}</td>
+                    <td class="py-2.5 px-3 text-emerald-600 font-semibold">${t.correct}</td>
+                    <td class="py-2.5 px-3 text-rose-500 font-semibold">${t.wrong}</td>
+                    <td class="py-2.5 px-3 font-bold text-indigo-600">${t.net}</td>
+                    <td class="py-2.5 px-3 text-right">
+                        <button onclick="deleteTrial(${t.id})" class="text-slate-400 hover:text-rose-500 transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateChart();
+            lucide.createIcons();
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById('trialChart').getContext('2d');
+            
+            const labels = trials.map(t => `${t.name} (${t.date})`);
+            const data = trials.map(t => t.net);
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Net Gelişimi',
+                        data: data,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#4f46e5',
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // --- VERİ YEDEKLEME VE DİŞA/İÇE AKTARMA ---
+        function exportData() {
+            const backupData = {
+                study_logs: logs,
+                trial_logs: trials
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `ders_ajandasi_yedek_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData.study_logs && importedData.trial_logs) {
+                        logs = importedData.study_logs;
+                        trials = importedData.trial_logs;
+                        localStorage.setItem('study_logs', JSON.stringify(logs));
+                        localStorage.setItem('trial_logs', JSON.stringify(trials));
+                        renderLogs();
+                        renderTrials();
+                        alert('Yedek verileriniz başarıyla yüklendi!');
+                    } else {
+                        alert('Geçersiz yedek dosyası formatı!');
+                    }
+                } catch (err) {
+                    alert('Dosya okunurken bir hata oluştu.');
+                }
+            };
+            fileReader.readAsText(event.target.files[0]);
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        // --- PWA KURULUM DESTEĞİ ---
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installBtn = document.getElementById('installBtn');
+            installBtn.classList.remove('hidden');
+            installBtn.addEventListener('click', () => {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        installBtn.classList.add('hidden');
+                    }
+                    deferredPrompt = null;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
